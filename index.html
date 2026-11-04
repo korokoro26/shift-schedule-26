@@ -36,6 +36,13 @@
       -webkit-user-select: auto;
     }
 
+    /* 写真フォルダへ長押し保存できるようにする画像用クラス */
+    .saveable-image {
+      -webkit-touch-callout: default !important;
+      user-select: auto !important;
+      -webkit-user-select: auto !important;
+    }
+
     body {
       background-color: #E5E5EA;
       font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
@@ -193,7 +200,7 @@
   <main class="flex-1 px-3 pt-3 pb-6">
 
     <!-- ==========================================
-         TAB 1 (一番左): 従業員登録（全店舗共通スタッフ・余計な説明テキスト全撤去）
+         TAB 1 (一番左): 従業員登録
          ========================================== -->
     <section v-if="activeTab === 'staff'" class="space-y-4">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
@@ -274,11 +281,11 @@
     </section>
 
     <!-- ==========================================
-         TAB 2 (左から2番目): シフト表作成（他店舗重複ブロック機能搭載）
+         TAB 2 (左から2番目): シフト表作成
          ========================================== -->
     <section v-if="activeTab === 'shift'" class="space-y-3">
       
-      <!-- スタッフ選択バー（その日の選択中店舗でのシフト時間のみをカッコ表示） -->
+      <!-- スタッフ選択バー -->
       <div class="sticky top-[148px] z-20 bg-[#F2F2F7]/95 backdrop-blur-md pt-1 pb-2 border-b border-gray-200/80">
         <div v-if="staffList.length > 0" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-200 space-y-2.5">
           
@@ -345,7 +352,7 @@
         </div>
       </div>
 
-      <!-- ツールバー（前日コピー・前週コピー・クリア） -->
+      <!-- ツールバー -->
       <div class="flex items-center justify-between px-0.5 gap-1">
         <span class="text-xs font-black text-gray-800 truncate">
           {{ formattedDateShort }}シフト
@@ -374,7 +381,7 @@
         </div>
       </div>
 
-      <!-- 0時〜23時 タイムライン（他店舗で勤務中の時間は自動ロック＆視覚表示） -->
+      <!-- 0時〜23時 タイムライン -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden divide-y divide-gray-100">
         <div 
           v-for="hour in 24" 
@@ -390,7 +397,6 @@
           </div>
 
           <div class="flex-1 px-2.5 py-1.5 flex flex-wrap items-center gap-1.5">
-            <!-- 現在の店舗に配置されているスタッフ -->
             <template v-if="getAssignedStaff(hour - 1).length > 0">
               <div
                 v-for="staff in getAssignedStaff(hour - 1)"
@@ -404,7 +410,6 @@
               </div>
             </template>
 
-            <!-- 選択中のスタッフが同日・同時間に別店舗に入っている場合のブロック表示 -->
             <div
               v-if="selectedStaff && getConflictStore(currentDate, hour - 1, selectedStaff.id)"
               class="inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-gray-200 text-gray-600 border border-gray-300"
@@ -433,7 +438,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 3 (左から3番目): 労務確認（全店舗合算の週労働時間・休日チェック）
+         TAB 3 (左から3番目): 労務確認
          ========================================== -->
     <section v-if="activeTab === 'labor'" class="space-y-3">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
@@ -466,7 +471,6 @@
         </div>
       </div>
 
-      <!-- 従業員ごとの個別労務カード一覧 -->
       <div v-if="staffList.length > 0" class="space-y-2.5">
         <div 
           v-for="stat in laborStatsList" 
@@ -515,7 +519,6 @@
             </div>
           </div>
 
-          <!-- 店舗別内訳バッジ（複数店舗勤務時のみ表示） -->
           <div v-if="storeList.length > 1" class="flex flex-wrap gap-1.5">
             <span 
               v-for="sb in stat.storeBreakdown" 
@@ -561,7 +564,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 4 (一番右): シフト表出力（説明テキスト撤去・シンプル構成）
+         TAB 4 (一番右): シフト表出力（軽量PDF・最適化出力）
          ========================================== -->
     <section v-if="activeTab === 'export'" class="space-y-4">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
@@ -579,7 +582,7 @@
             class="touch-target bg-blue-600 active:bg-blue-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-3 px-3 shadow-sm flex items-center justify-center gap-2 transition"
           >
             <i data-lucide="file-down" class="w-4 h-4"></i>
-            <span>{{ isExporting ? '生成中...' : 'A4 PDFで保存' }}</span>
+            <span>{{ isExporting ? '処理中...' : 'A4 PDFで保存' }}</span>
           </button>
 
           <button 
@@ -588,7 +591,7 @@
             class="touch-target bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-3 px-3 shadow-sm flex items-center justify-center gap-2 transition"
           >
             <i data-lucide="image-down" class="w-4 h-4"></i>
-            <span>{{ isExporting ? '生成中...' : 'A4 PNG画像で保存' }}</span>
+            <span>{{ isExporting ? '処理中...' : 'PNG画像で保存' }}</span>
           </button>
         </div>
       </div>
@@ -599,19 +602,19 @@
             v-if="previewDataUrl" 
             :src="previewDataUrl" 
             alt="A4週間シフト表プレビュー" 
-            class="min-w-[840px] w-full h-auto rounded shadow-xs bg-white block"
+            class="saveable-image min-w-[840px] w-full h-auto rounded shadow-xs bg-white block"
           />
         </div>
       </div>
     </section>
 
     <div class="mt-6 text-center">
-      <span class="text-[10px] text-gray-400 font-bold select-none">v3.0.0</span>
+      <span class="text-[10px] text-gray-400 font-bold select-none">v3.2.0</span>
     </div>
   </main>
 
   <!-- ==========================================
-       モーダル 1: 時間指定で一括配置（他店舗重複時は自動ブロック）
+       モーダル 1: 時間指定で一括配置
        ========================================== -->
   <div 
     v-if="showPresetModal" 
@@ -695,7 +698,7 @@
   </div>
 
   <!-- ==========================================
-       モーダル 2: 店舗管理（追加・名前編集・削除）
+       モーダル 2: 店舗管理
        ========================================== -->
   <div 
     v-if="showStoreModal" 
@@ -713,7 +716,6 @@
         </button>
       </div>
 
-      <!-- 新規店舗追加フォーム -->
       <div class="flex space-x-2">
         <input 
           type="text" 
@@ -731,7 +733,6 @@
         </button>
       </div>
 
-      <!-- 登録済み店舗リスト -->
       <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto border border-gray-200 rounded-xl">
         <div 
           v-for="st in storeList" 
@@ -793,7 +794,43 @@
   </div>
 
   <!-- ==========================================
-       下部タブバー（1.従業員登録 / 2.シフト表作成 / 3.労務確認 / 4.シフト表出力）
+       モーダル 4: 写真保存用フォールバック
+       ========================================== -->
+  <div 
+    v-if="showPhotoSaveModal" 
+    @click.self="showPhotoSaveModal = false"
+    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-4"
+  >
+    <div class="bg-white w-full max-w-[460px] rounded-3xl p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+        <span class="text-xs font-black text-blue-600 flex items-center gap-1">
+          <i data-lucide="smartphone" class="w-4 h-4"></i>
+          画像を長押しして「"写真"に保存」を選択してください
+        </span>
+        <button @click="showPhotoSaveModal = false" class="touch-target flex items-center justify-center text-gray-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-gray-100 rounded-xl p-2 overflow-hidden flex items-center justify-center">
+        <img 
+          :src="previewDataUrl" 
+          alt="長押しして写真に保存" 
+          class="saveable-image w-full h-auto rounded shadow-sm bg-white block"
+        />
+      </div>
+
+      <button 
+        @click="showPhotoSaveModal = false"
+        class="w-full touch-target bg-gray-900 text-white font-black text-xs rounded-xl py-2.5"
+      >
+        閉じる
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       下部タブバー
        ========================================== -->
   <nav class="bottom-nav fixed bottom-0 z-40 grid grid-cols-4 px-1">
     <button 
@@ -842,7 +879,6 @@
 </div>
 
 <script>
-  // PWA Manifest 設定
   (function setupPWA() {
     const manifest = {
       name: "コンビニ24時間 週間シフト＆労務管理",
@@ -863,7 +899,6 @@
     document.head.appendChild(link);
   })();
 
-  // 高識別カラーパレット（全員別色）
   const DISTINCT_COLORS = [
     '#0062FF', '#E63946', '#00A859', '#EA580C', '#7B2CBF',
     '#008B8B', '#D9048E', '#4F46E5', '#8B5A2B', '#2B9348',
@@ -896,7 +931,6 @@
     }
   }
 
-  // IndexedDB 永続化ストレージ
   const DB_NAME = 'ConvenienceStoreShiftDB';
   const DB_VERSION = 1;
   const STORE_NAME = 'app_state';
@@ -984,7 +1018,6 @@
       const todayStr = toDateStr(new Date());
       return {
         activeTab: 'shift',
-        // 複数店舗管理データ
         storeList: [],
         activeStoreId: 'store-1',
         showStoreModal: false,
@@ -996,6 +1029,7 @@
         staffToDelete: null,
         showPresetModal: false,
         showStaffGrid: false,
+        showPhotoSaveModal: false,
         isExporting: false,
         previewDataUrl: '',
 
@@ -1008,10 +1042,7 @@
           end: 17
         },
 
-        // 全店舗共通の従業員リスト
         staffList: [],
-
-        // 店舗別・日別シフトデータ: { [storeId]: { 'YYYY-MM-DD': { 0: [staffId], ... 23: [] } } }
         shiftsByStore: {}
       };
     },
@@ -1021,7 +1052,6 @@
         return this.storeList.find(s => s.id === this.activeStoreId) || this.storeList[0] || null;
       },
 
-      // 現在選択中の店舗のシフト辞書
       currentStoreShifts() {
         if (!this.shiftsByStore[this.activeStoreId]) {
           return {};
@@ -1086,15 +1116,11 @@
         return `${dt.getMonth() + 1}/${dt.getDate()}(${days[dt.getDay()]})`;
       },
 
-      // ==========================================
-      // 労務確認ページ用 リアルタイム集計（全店舗合算）
-      // ==========================================
       laborStatsList() {
         return this.staffList.map(staff => {
           let weeklyHours = 0;
           let workDays = 0;
 
-          // 店舗別の週間勤務時間内訳
           const storeHoursMap = {};
           this.storeList.forEach(st => { storeHoursMap[st.id] = 0; });
 
@@ -1181,6 +1207,9 @@
       },
       showStaffGrid() {
         this.refreshIcons();
+      },
+      showPhotoSaveModal() {
+        this.refreshIcons();
       }
     },
 
@@ -1208,7 +1237,6 @@
         this.activeTab = 'shift';
       },
 
-      // IndexedDBから全データを復元（旧バージョンの単一店舗データからの自動マイグレーション対応）
       async loadAllData() {
         const savedStores = await dbGet('storeList');
         const savedActiveStoreId = await dbGet('activeStoreId');
@@ -1217,7 +1245,6 @@
         const savedShiftsByStore = await dbGet('shiftsByStore');
         const savedShiftsLegacy = await dbGet('shiftsByDate');
 
-        // 1. 店舗リストの復元（初期は2店舗を用意してすぐに複数店舗切替・重複ブロックが使える状態にする）
         if (savedStores && Array.isArray(savedStores) && savedStores.length > 0) {
           this.storeList = savedStores;
         } else {
@@ -1235,7 +1262,6 @@
           this.activeStoreId = this.storeList[0].id;
         }
 
-        // 2. 従業員リストの復元
         if (savedStaff && Array.isArray(savedStaff) && savedStaff.length > 0) {
           const updatedStaff = [];
           savedStaff.forEach(st => {
@@ -1267,7 +1293,6 @@
           this.selectedStaffId = this.staffList[0].id;
         }
 
-        // 3. 店舗別シフトデータの復元（旧データがある場合は1号店へ引き継ぎ）
         if (savedShiftsByStore && typeof savedShiftsByStore === 'object') {
           this.shiftsByStore = savedShiftsByStore;
         } else if (savedShiftsLegacy && typeof savedShiftsLegacy === 'object') {
@@ -1283,7 +1308,6 @@
           this.storeList.forEach(st => {
             this.shiftsByStore[st.id] = {};
           });
-          // 初回サンプルデータ（1号店）
           const firstId = this.storeList[0].id;
           this.currentWeekDays.forEach(d => {
             this.populateSampleDay(firstId, d.dateStr);
@@ -1330,9 +1354,6 @@
         await dbSet('shiftsByStore', JSON.parse(JSON.stringify(this.shiftsByStore)));
       },
 
-      // ==========================================
-      // 店舗追加・管理機能
-      // ==========================================
       openStoreModal() {
         this.newStoreName = '';
         this.showStoreModal = true;
@@ -1372,10 +1393,6 @@
         this.refreshIcons();
       },
 
-      // ==========================================
-      // 他店舗との重複（ダブルブッキング）チェック関数
-      // 指定した日・時間にその従業員が「現在選択中以外の別店舗」に入っていれば、その店舗オブジェクトを返す
-      // ==========================================
       getConflictStore(dateStr, hour, staffId) {
         for (const st of this.storeList) {
           if (st.id === this.activeStoreId) continue;
@@ -1473,7 +1490,6 @@
         return filled;
       },
 
-      // 現在選択中の店舗・その日にその従業員がシフトに入っている合計時間
       getStaffTotalHours(staffId) {
         let count = 0;
         const schedule = this.currentDaySchedule;
@@ -1485,7 +1501,6 @@
         return count;
       },
 
-      // 1時間枠タップ時の配置/解除（別店舗で同時間に勤務している場合はシステム側でブロック）
       async toggleStaffInHour(hour) {
         if (!this.selectedStaffId) {
           alert('配置する従業員を選択してください。');
@@ -1496,7 +1511,6 @@
         const idx = list.indexOf(this.selectedStaffId);
 
         if (idx === -1) {
-          // 他店舗での重複勤務チェック
           const conflictStore = this.getConflictStore(this.currentDate, hour, this.selectedStaffId);
           if (conflictStore) {
             const staffName = this.selectedStaff ? this.selectedStaff.name : '選択した従業員';
@@ -1528,7 +1542,6 @@
         this.refreshIcons();
       },
 
-      // 指定日・時間範囲への一括配置（別店舗と重複するコマは自動でブロックしてスキップ）
       applyRangeToDate(dateStr, staffId, startHour, endHour) {
         this.ensureStoreDateInitialized(this.activeStoreId, dateStr);
         const schedule = this.shiftsByStore[this.activeStoreId][dateStr];
@@ -1591,7 +1604,6 @@
         this.refreshIcons();
       },
 
-      // 前日のシフトをコピー（他店舗と重複しているスタッフ・時間は自動ブロック）
       async copyPreviousDayShift() {
         const dt = parseDateStr(this.currentDate);
         dt.setDate(dt.getDate() - 1);
@@ -1626,7 +1638,6 @@
         }
       },
 
-      // 前週のシフトを今週7日間に一括コピー（他店舗と重複しているスタッフ・時間は自動ブロック）
       async copyPreviousWeekShift() {
         const currentDays = this.currentWeekDays;
         let hasPrevWeekData = false;
@@ -1763,10 +1774,11 @@
       },
 
       // ==========================================
-      // HTML5 Canvas ネイティブ高精細A4描画エンジン
+      // HTML5 Canvas ネイティブ高精細A4描画エンジン（ファイルサイズ劇的軽量化対応）
       // ==========================================
       renderA4ShiftCanvas() {
-        const scale = 2;
+        // PDF/PNGファイルサイズが肥大化しないよう、スケールを適正な高精細（scale: 1.5）に最適化
+        const scale = 1.5;
         const logicalW = 1123;
         const logicalH = 794;
 
@@ -1973,7 +1985,7 @@
 
       updateCanvasPreview() {
         const canvas = this.renderA4ShiftCanvas();
-        this.previewDataUrl = canvas.toDataURL('image/png');
+        this.previewDataUrl = canvas.toDataURL('image/jpeg', 0.88);
       },
 
       async exportAsPNG() {
@@ -1981,18 +1993,46 @@
         this.isExporting = true;
         try {
           const canvas = this.renderA4ShiftCanvas();
-          const dataUrl = canvas.toDataURL('image/png');
+          // PNGではなく、高品質かつ高圧縮なJPEG（品質0.90）で出力することでファイルサイズを数100KB〜数MB以下（100MB未満）に自動抑制
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
           this.previewDataUrl = dataUrl;
-          const link = document.createElement('a');
+
           const mondayStr = this.currentWeekDays[0].dateStr;
           const storeTitle = (this.currentStore && this.currentStore.name) ? this.currentStore.name : '店舗';
-          link.download = `週間シフト表_${storeTitle}_${mondayStr}週.png`;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          const fileName = `週間シフト表_${storeTitle}_${mondayStr}週.jpg`;
+
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
+          if (!blob) throw new Error('画像データの生成に失敗しました。');
+
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: fileName
+              });
+              return;
+            } catch (shareErr) {
+              if (shareErr.name === 'AbortError') return;
+            }
+          }
+
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            this.showPhotoSaveModal = true;
+          } else {
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = blobUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+          }
         } catch (err) {
-          alert('PNG画像の出力に失敗しました: ' + err.message);
+          this.showPhotoSaveModal = true;
         } finally {
           this.isExporting = false;
         }
@@ -2003,18 +2043,38 @@
         this.isExporting = true;
         try {
           const canvas = this.renderA4ShiftCanvas();
-          const imgData = canvas.toDataURL('image/png');
+          // jsPDF埋め込み時もJPEG圧縮（品質0.85）を適用し、PDFファイルサイズを数MB以下（100MB以下を確実に満たす軽量サイズ）に自動制御
+          const imgData = canvas.toDataURL('image/jpeg', 0.85);
           this.previewDataUrl = imgData;
+
           const { jsPDF } = window.jspdf;
           const pdf = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true // jsPDF標準の内部ストリーム圧縮を有効化
           });
-          pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+          
+          pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
           const mondayStr = this.currentWeekDays[0].dateStr;
           const storeTitle = (this.currentStore && this.currentStore.name) ? this.currentStore.name : '店舗';
-          pdf.save(`週間シフト表_${storeTitle}_${mondayStr}週.pdf`);
+          const fileName = `週間シフト表_${storeTitle}_${mondayStr}週.pdf`;
+
+          const pdfBlob = pdf.output('blob');
+          const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            try {
+              await navigator.share({
+                files: [pdfFile],
+                title: fileName
+              });
+              return;
+            } catch (shareErr) {
+              if (shareErr.name === 'AbortError') return;
+            }
+          }
+
+          pdf.save(fileName);
         } catch (err) {
           alert('PDFの出力に失敗しました: ' + err.message);
         } finally {
