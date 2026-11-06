@@ -281,7 +281,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 2 (左から2番目・新規追加): 希望休管理
+         TAB 2 (左から2番目): 希望休管理
          ========================================== -->
     <section v-if="activeTab === 'dayoff'" class="space-y-3">
       <!-- 希望休管理ヘッダー ＆ モード切替 -->
@@ -728,10 +728,10 @@
     </section>
 
     <!-- ==========================================
-         TAB 5 (一番右): シフト表出力
+         TAB 5 (一番右): シフト表出力（スクロールなしで画面内にA4全体を一括表示）
          ========================================== -->
-    <section v-if="activeTab === 'export'" class="space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+    <section v-if="activeTab === 'export'" class="space-y-3">
+      <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-2.5">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-black text-gray-900 flex items-center gap-1.5">
             <i data-lucide="printer" class="w-4 h-4 text-blue-600"></i>
@@ -739,11 +739,11 @@
           </h2>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5">
+        <div class="grid grid-cols-2 gap-2">
           <button 
             @click="exportAsPDF"
             :disabled="isExporting"
-            class="touch-target bg-blue-600 active:bg-blue-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-3 px-3 shadow-sm flex items-center justify-center gap-2 transition"
+            class="touch-target bg-blue-600 active:bg-blue-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-2.5 px-3 shadow-sm flex items-center justify-center gap-1.5 transition"
           >
             <i data-lucide="file-down" class="w-4 h-4"></i>
             <span>{{ isExporting ? '処理中...' : 'A4 PDFで保存' }}</span>
@@ -752,7 +752,7 @@
           <button 
             @click="exportAsPNG"
             :disabled="isExporting"
-            class="touch-target bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-3 px-3 shadow-sm flex items-center justify-center gap-2 transition"
+            class="touch-target bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl py-2.5 px-3 shadow-sm flex items-center justify-center gap-1.5 transition"
           >
             <i data-lucide="image-down" class="w-4 h-4"></i>
             <span>{{ isExporting ? '処理中...' : 'PNG画像で保存' }}</span>
@@ -760,20 +760,21 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 space-y-2">
-        <div class="overflow-x-auto border border-gray-200 rounded-xl bg-gray-100 p-2">
+      <!-- スクロールなしでスマホ画面幅いっぱいにA4全体が収まるプレビュー枠 -->
+      <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-100">
+        <div class="w-full rounded-xl bg-slate-900/5 p-1 border border-gray-200/80 overflow-hidden">
           <img 
             v-if="previewDataUrl" 
             :src="previewDataUrl" 
             alt="A4週間シフト表プレビュー" 
-            class="saveable-image min-w-[840px] w-full h-auto rounded shadow-xs bg-white block"
+            class="saveable-image w-full h-auto aspect-[1123/794] object-contain rounded-lg shadow-xs bg-white block"
           />
         </div>
       </div>
     </section>
 
     <div class="mt-6 text-center">
-      <span class="text-[10px] text-gray-400 font-bold select-none">v3.3.0</span>
+      <span class="text-[10px] text-gray-400 font-bold select-none">v3.4.0</span>
     </div>
   </main>
 
@@ -1206,9 +1207,7 @@
         isExporting: false,
         previewDataUrl: '',
 
-        // 希望休管理ページの表示モード ('matrix': 週間一括マトリクス / 'hourly': 時間単位)
         dayOffViewMode: 'matrix',
-        // 希望休データ (全店舗共通): { 'YYYY-MM-DD': { [staffId]: [0, 1, ... 23] } }
         dayOffByDate: {},
 
         staffForm: {
@@ -1544,9 +1543,6 @@
         await dbSet('dayOffByDate', JSON.parse(JSON.stringify(this.dayOffByDate)));
       },
 
-      // ==========================================
-      // 希望休管理機能（終日一括 ＆ 時間単位設定・既存シフトとの整合性保護）
-      // ==========================================
       isStaffDayOff(dateStr, hour, staffId) {
         if (!staffId) return false;
         const dObj = this.dayOffByDate[dateStr];
@@ -1574,7 +1570,6 @@
         return this.staffList.filter(st => Array.isArray(dObj[st.id]) && dObj[st.id].includes(hour));
       },
 
-      // 該当スタッフの全店舗シフトが指定時間に入っているか確認
       hasAnyShiftInStores(dateStr, hoursArray, staffId) {
         for (const st of this.storeList) {
           const sched = this.shiftsByStore[st.id] && this.shiftsByStore[st.id][dateStr];
@@ -1589,7 +1584,6 @@
         return false;
       },
 
-      // 希望休を設定した時間帯から既存シフトを全店舗一括解除
       removeShiftsForDayOff(dateStr, hoursArray, staffId) {
         this.storeList.forEach(st => {
           const sched = this.shiftsByStore[st.id] && this.shiftsByStore[st.id][dateStr];
@@ -1812,13 +1806,11 @@
         const idx = list.indexOf(this.selectedStaffId);
 
         if (idx === -1) {
-          // 1. 希望休ブロック判定
           if (this.isStaffDayOff(this.currentDate, hour, this.selectedStaffId)) {
             const staffName = this.selectedStaff ? this.selectedStaff.name : '選択した従業員';
             alert(`【希望休ブロック】\n${staffName}さんは、この日の${hour}時に「希望休」が登録されているため配置できません。`);
             return;
           }
-          // 2. 他店舗重複ブロック判定
           const conflictStore = this.getConflictStore(this.currentDate, hour, this.selectedStaffId);
           if (conflictStore) {
             const staffName = this.selectedStaff ? this.selectedStaff.name : '選択した従業員';
