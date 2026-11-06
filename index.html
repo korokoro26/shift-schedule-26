@@ -281,7 +281,159 @@
     </section>
 
     <!-- ==========================================
-         TAB 2 (左から2番目): シフト表作成
+         TAB 2 (左から2番目・新規追加): 希望休管理
+         ========================================== -->
+    <section v-if="activeTab === 'dayoff'" class="space-y-3">
+      <!-- 希望休管理ヘッダー ＆ モード切替 -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-black text-gray-900 flex items-center gap-1.5">
+            <i data-lucide="calendar-off" class="w-4 h-4 text-rose-600"></i>
+            希望休管理（{{ weekRangeShortLabel }}）
+          </h2>
+          <!-- モード切替セグメント -->
+          <div class="flex bg-gray-100 p-0.5 rounded-xl border border-gray-200">
+            <button
+              @click="dayOffViewMode = 'matrix'"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-black transition"
+              :class="dayOffViewMode === 'matrix' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500'"
+            >
+              終日一括
+            </button>
+            <button
+              @click="dayOffViewMode = 'hourly'"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-black transition"
+              :class="dayOffViewMode === 'hourly' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500'"
+            >
+              時間単位
+            </button>
+          </div>
+        </div>
+
+        <!-- モード1: 週間（月〜日）× 従業員マトリクス（ワンタップで終日希望休ON/OFF） -->
+        <div v-if="dayOffViewMode === 'matrix'" class="space-y-2">
+          <div v-if="staffList.length > 0" class="overflow-x-auto border border-gray-200 rounded-xl">
+            <table class="w-full border-collapse text-center table-fixed">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-600">
+                  <th class="w-24 py-2 px-2 text-left">スタッフ</th>
+                  <th 
+                    v-for="day in currentWeekDays" 
+                    :key="'do-th-'+day.dateStr"
+                    class="py-1.5 border-l border-gray-200"
+                    :class="day.dayIndex === 0 ? 'text-red-600 bg-red-50/40' : day.dayIndex === 6 ? 'text-blue-600 bg-blue-50/40' : ''"
+                  >
+                    <div>{{ day.dayLabel }}</div>
+                    <div class="text-[9px] font-bold">{{ day.dayNum }}</div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-xs">
+                <tr v-for="staff in staffList" :key="'do-row-'+staff.id">
+                  <td class="py-2 px-2 text-left font-black text-gray-900 truncate">
+                    <div class="flex items-center space-x-1.5 truncate">
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: staff.color }"></span>
+                      <span class="truncate">{{ staff.name }}</span>
+                    </div>
+                  </td>
+                  <td 
+                    v-for="day in currentWeekDays" 
+                    :key="'do-cell-'+staff.id+'-'+day.dateStr"
+                    class="border-l border-gray-100 p-1"
+                  >
+                    <button
+                      @click="toggleFullDayOff(day.dateStr, staff.id)"
+                      class="w-full h-9 rounded-lg font-black text-[11px] flex flex-col items-center justify-center transition active:scale-95"
+                      :class="getDayOffStatus(day.dateStr, staff.id) === 'full' 
+                        ? 'bg-rose-600 text-white shadow-2xs' 
+                        : getDayOffStatus(day.dateStr, staff.id) === 'partial'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : 'bg-gray-50 text-gray-300 hover:bg-gray-100'"
+                    >
+                      <span v-if="getDayOffStatus(day.dateStr, staff.id) === 'full'">休</span>
+                      <span v-else-if="getDayOffStatus(day.dateStr, staff.id) === 'partial'" class="text-[9px] leading-tight">
+                        一部<br>{{ getDayOffHoursCount(day.dateStr, staff.id) }}h
+                      </span>
+                      <span v-else>-</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="p-6 text-center text-xs text-gray-400 font-bold">
+            まずは従業員を登録してください
+          </div>
+        </div>
+
+        <!-- モード2: 時間単位での希望休・NG時間設定 -->
+        <div v-if="dayOffViewMode === 'hourly'" class="space-y-3">
+          <div v-if="staffList.length > 0" class="flex items-center space-x-2">
+            <div class="relative flex-1">
+              <span 
+                v-if="selectedStaff"
+                class="w-3.5 h-3.5 rounded-full absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                :style="{ backgroundColor: selectedStaff.color }"
+              ></span>
+              <select
+                v-model="selectedStaffId"
+                class="w-full touch-target pl-8 pr-8 py-2 bg-gray-50 border border-gray-300 rounded-xl font-black text-sm text-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-rose-500"
+              >
+                <option v-for="staff in staffList" :key="'do-sel-'+staff.id" :value="staff.id">
+                  {{ staff.name }}（{{ formattedDateShort }}の希望休：{{ getDayOffHoursCount(currentDate, staff.id) }}時間）
+                </option>
+              </select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+
+            <button
+              @click="toggleFullDayOff(currentDate, selectedStaffId)"
+              class="touch-target px-3 py-2 rounded-xl text-xs font-black border shrink-0 transition"
+              :class="getDayOffStatus(currentDate, selectedStaffId) === 'full' 
+                ? 'bg-gray-100 text-gray-700 border-gray-300' 
+                : 'bg-rose-600 text-white border-rose-600 shadow-2xs'"
+            >
+              {{ getDayOffStatus(currentDate, selectedStaffId) === 'full' ? '終日解除' : '終日休にする' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 時間単位モード時の24時間タイムライン -->
+      <div v-if="dayOffViewMode === 'hourly' && staffList.length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden divide-y divide-gray-100">
+        <div 
+          v-for="hour in 24" 
+          :key="'do-h-'+(hour - 1)"
+          @click="toggleHourDayOff(currentDate, hour - 1, selectedStaffId)"
+          class="flex items-stretch min-h-[46px] active:bg-rose-50/70 transition-colors cursor-pointer"
+        >
+          <div class="w-14 shrink-0 flex items-center justify-center border-r border-gray-100 bg-gray-50/70">
+            <span class="text-sm font-black text-gray-800">{{ hour - 1 }}時</span>
+          </div>
+
+          <div class="flex-1 px-2.5 py-1.5 flex flex-wrap items-center gap-1.5">
+            <template v-if="getDayOffStaffForHour(currentDate, hour - 1).length > 0">
+              <div
+                v-for="st in getDayOffStaffForHour(currentDate, hour - 1)"
+                :key="'do-chip-'+st.id"
+                @click.stop="toggleHourDayOff(currentDate, hour - 1, st.id)"
+                class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-black bg-rose-600 text-white shadow-2xs active:scale-95 transition"
+              >
+                <i data-lucide="calendar-off" class="w-3 h-3"></i>
+                <span>{{ st.name }}（希望休）</span>
+                <i data-lucide="x" class="w-3 h-3 opacity-85"></i>
+              </div>
+            </template>
+            <template v-else>
+              <span class="text-xs text-gray-300 font-semibold">タップして希望休（勤務不可）に設定</span>
+            </template>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 3 (左から3番目): シフト表作成（希望休＆他店舗重複ブロック搭載）
          ========================================== -->
     <section v-if="activeTab === 'shift'" class="space-y-3">
       
@@ -301,7 +453,7 @@
                 class="w-full touch-target pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-300 rounded-xl font-black text-sm text-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option v-for="staff in staffList" :key="staff.id" :value="staff.id">
-                  {{ staff.name }}（{{ getStaffTotalHours(staff.id) }}時間）
+                  {{ staff.name }}（{{ getStaffTotalHours(staff.id) }}時間）{{ getDayOffStatus(currentDate, staff.id) === 'full' ? '【希望休】' : getDayOffStatus(currentDate, staff.id) === 'partial' ? '【一部希望休】' : '' }}
                 </option>
               </select>
               <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
@@ -339,7 +491,9 @@
                 <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: selectedStaffId === staff.id ? '#fff' : staff.color }"></span>
                 <span class="truncate">{{ staff.name }}</span>
               </div>
-              <span class="text-[10px] shrink-0 ml-1 opacity-90">（{{ getStaffTotalHours(staff.id) }}時間）</span>
+              <span class="text-[10px] shrink-0 ml-1 opacity-90">
+                {{ getDayOffStatus(currentDate, staff.id) === 'full' ? '休' : `（${getStaffTotalHours(staff.id)}時間）` }}
+              </span>
             </button>
           </div>
         </div>
@@ -388,7 +542,7 @@
           :key="hour - 1"
           @click="toggleStaffInHour(hour - 1)"
           class="flex items-stretch min-h-[48px] transition-colors"
-          :class="selectedStaffId && getConflictStore(currentDate, hour - 1, selectedStaffId) ? 'bg-gray-100/80 cursor-not-allowed' : 'active:bg-blue-50/70 cursor-pointer'"
+          :class="selectedStaffId && (isStaffDayOff(currentDate, hour - 1, selectedStaffId) || getConflictStore(currentDate, hour - 1, selectedStaffId)) ? 'bg-gray-100/80 cursor-not-allowed' : 'active:bg-blue-50/70 cursor-pointer'"
         >
           <div class="w-14 shrink-0 flex items-center justify-center border-r border-gray-100 bg-gray-50/70">
             <span class="text-sm font-black text-gray-800">
@@ -410,15 +564,25 @@
               </div>
             </template>
 
+            <!-- 選択中スタッフが希望休の場合のブロック表示 -->
             <div
-              v-if="selectedStaff && getConflictStore(currentDate, hour - 1, selectedStaff.id)"
+              v-if="selectedStaff && isStaffDayOff(currentDate, hour - 1, selectedStaff.id)"
+              class="inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+            >
+              <i data-lucide="calendar-off" class="w-3 h-3 text-rose-600 shrink-0"></i>
+              <span>{{ selectedStaff.name }}：希望休</span>
+            </div>
+
+            <!-- 選択中スタッフが別店舗勤務中の場合のブロック表示 -->
+            <div
+              v-else-if="selectedStaff && getConflictStore(currentDate, hour - 1, selectedStaff.id)"
               class="inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-gray-200 text-gray-600 border border-gray-300"
             >
               <i data-lucide="lock" class="w-3 h-3 text-red-500 shrink-0"></i>
               <span>{{ selectedStaff.name }}：{{ getConflictStore(currentDate, hour - 1, selectedStaff.id).name }}で勤務中</span>
             </div>
 
-            <template v-if="getAssignedStaff(hour - 1).length === 0 && !(selectedStaff && getConflictStore(currentDate, hour - 1, selectedStaff.id))">
+            <template v-if="getAssignedStaff(hour - 1).length === 0 && !(selectedStaff && (isStaffDayOff(currentDate, hour - 1, selectedStaff.id) || getConflictStore(currentDate, hour - 1, selectedStaff.id)))">
               <span class="text-xs text-gray-300 font-semibold">
                 タップして配置
               </span>
@@ -438,7 +602,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 3 (左から3番目): 労務確認
+         TAB 4 (左から4番目): 労務確認
          ========================================== -->
     <section v-if="activeTab === 'labor'" class="space-y-3">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
@@ -551,11 +715,11 @@
               :key="'bd-'+stat.staff.id+'-'+d.dateStr"
               @click="jumpToShiftDay(d.dateStr, stat.staff.id)"
               class="py-1.5 rounded-lg border text-center transition active:scale-95"
-              :class="d.hours > 0 ? 'bg-blue-50/70 border-blue-200 text-blue-900' : 'bg-gray-50 border-gray-200/60 text-gray-400'"
+              :class="d.hours > 0 ? 'bg-blue-50/70 border-blue-200 text-blue-900' : d.isDayOff ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-gray-50 border-gray-200/60 text-gray-400'"
             >
               <span class="block text-[9px] font-bold">{{ d.dayLabel }}</span>
               <span class="block text-[11px] font-black mt-0.5">
-                {{ d.hours > 0 ? d.hours + 'h' : '休' }}
+                {{ d.hours > 0 ? d.hours + 'h' : d.isDayOff ? '希休' : '休' }}
               </span>
             </button>
           </div>
@@ -564,7 +728,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 4 (一番右): シフト表出力（軽量PDF・最適化出力）
+         TAB 5 (一番右): シフト表出力
          ========================================== -->
     <section v-if="activeTab === 'export'" class="space-y-4">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
@@ -609,7 +773,7 @@
     </section>
 
     <div class="mt-6 text-center">
-      <span class="text-[10px] text-gray-400 font-bold select-none">v3.2.0</span>
+      <span class="text-[10px] text-gray-400 font-bold select-none">v3.3.0</span>
     </div>
   </main>
 
@@ -830,16 +994,25 @@
   </div>
 
   <!-- ==========================================
-       下部タブバー
+       下部タブバー（5つの機能：1.従業員登録 / 2.希望休管理 / 3.シフト表作成 / 4.労務確認 / 5.シフト表出力）
        ========================================== -->
-  <nav class="bottom-nav fixed bottom-0 z-40 grid grid-cols-4 px-1">
+  <nav class="bottom-nav fixed bottom-0 z-40 grid grid-cols-5 px-0.5">
     <button 
       @click="activeTab = 'staff'"
       class="touch-target flex flex-col items-center justify-center py-1 transition"
       :class="activeTab === 'staff' ? 'text-blue-600 font-black' : 'text-gray-400 font-bold'"
     >
       <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
-      <span class="text-[10px]">従業員登録</span>
+      <span class="text-[9.5px] tracking-tighter">従業員登録</span>
+    </button>
+
+    <button 
+      @click="activeTab = 'dayoff'"
+      class="touch-target flex flex-col items-center justify-center py-1 transition relative"
+      :class="activeTab === 'dayoff' ? 'text-rose-600 font-black' : 'text-gray-400 font-bold'"
+    >
+      <i data-lucide="calendar-off" class="w-5 h-5 mb-0.5"></i>
+      <span class="text-[9.5px] tracking-tighter">希望休管理</span>
     </button>
 
     <button 
@@ -848,7 +1021,7 @@
       :class="activeTab === 'shift' ? 'text-blue-600 font-black' : 'text-gray-400 font-bold'"
     >
       <i data-lucide="calendar-clock" class="w-5 h-5 mb-0.5"></i>
-      <span class="text-[10px]">シフト表作成</span>
+      <span class="text-[9.5px] tracking-tighter">シフト表作成</span>
     </button>
 
     <button 
@@ -857,10 +1030,10 @@
       :class="activeTab === 'labor' ? 'text-blue-600 font-black' : 'text-gray-400 font-bold'"
     >
       <i data-lucide="shield-alert" class="w-5 h-5 mb-0.5"></i>
-      <span class="text-[10px]">労務確認</span>
+      <span class="text-[9.5px] tracking-tighter">労務確認</span>
       <span 
         v-if="totalLaborAlertCount > 0"
-        class="absolute top-1.5 right-4 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center"
+        class="absolute top-1.5 right-2.5 min-w-[15px] h-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center"
       >
         {{ totalLaborAlertCount }}
       </span>
@@ -872,7 +1045,7 @@
       :class="activeTab === 'export' ? 'text-blue-600 font-black' : 'text-gray-400 font-bold'"
     >
       <i data-lucide="printer" class="w-5 h-5 mb-0.5"></i>
-      <span class="text-[10px]">シフト表出力</span>
+      <span class="text-[9.5px] tracking-tighter">シフト表出力</span>
     </button>
   </nav>
 
@@ -1033,6 +1206,11 @@
         isExporting: false,
         previewDataUrl: '',
 
+        // 希望休管理ページの表示モード ('matrix': 週間一括マトリクス / 'hourly': 時間単位)
+        dayOffViewMode: 'matrix',
+        // 希望休データ (全店舗共通): { 'YYYY-MM-DD': { [staffId]: [0, 1, ... 23] } }
+        dayOffByDate: {},
+
         staffForm: {
           name: ''
         },
@@ -1143,7 +1321,8 @@
               dateStr: day.dateStr,
               dayLabel: day.dayLabel,
               shortDate: day.shortDate,
-              hours: dayTotalHours
+              hours: dayTotalHours,
+              isDayOff: this.getDayOffStatus(day.dateStr, staff.id) === 'full'
             };
           });
 
@@ -1205,6 +1384,9 @@
         }
         this.refreshIcons();
       },
+      dayOffViewMode() {
+        this.refreshIcons();
+      },
       showStaffGrid() {
         this.refreshIcons();
       },
@@ -1244,6 +1426,7 @@
         const savedStaff = await dbGet('staffList');
         const savedShiftsByStore = await dbGet('shiftsByStore');
         const savedShiftsLegacy = await dbGet('shiftsByDate');
+        const savedDayOff = await dbGet('dayOffByDate');
 
         if (savedStores && Array.isArray(savedStores) && savedStores.length > 0) {
           this.storeList = savedStores;
@@ -1291,6 +1474,10 @@
 
         if (this.staffList.length > 0) {
           this.selectedStaffId = this.staffList[0].id;
+        }
+
+        if (savedDayOff && typeof savedDayOff === 'object') {
+          this.dayOffByDate = savedDayOff;
         }
 
         if (savedShiftsByStore && typeof savedShiftsByStore === 'object') {
@@ -1352,6 +1539,120 @@
       },
       async persistShifts() {
         await dbSet('shiftsByStore', JSON.parse(JSON.stringify(this.shiftsByStore)));
+      },
+      async persistDayOff() {
+        await dbSet('dayOffByDate', JSON.parse(JSON.stringify(this.dayOffByDate)));
+      },
+
+      // ==========================================
+      // 希望休管理機能（終日一括 ＆ 時間単位設定・既存シフトとの整合性保護）
+      // ==========================================
+      isStaffDayOff(dateStr, hour, staffId) {
+        if (!staffId) return false;
+        const dObj = this.dayOffByDate[dateStr];
+        if (!dObj || !Array.isArray(dObj[staffId])) return false;
+        return dObj[staffId].includes(hour);
+      },
+
+      getDayOffHoursCount(dateStr, staffId) {
+        if (!staffId) return 0;
+        const dObj = this.dayOffByDate[dateStr];
+        if (!dObj || !Array.isArray(dObj[staffId])) return 0;
+        return dObj[staffId].length;
+      },
+
+      getDayOffStatus(dateStr, staffId) {
+        const count = this.getDayOffHoursCount(dateStr, staffId);
+        if (count === 24) return 'full';
+        if (count > 0) return 'partial';
+        return 'none';
+      },
+
+      getDayOffStaffForHour(dateStr, hour) {
+        const dObj = this.dayOffByDate[dateStr];
+        if (!dObj) return [];
+        return this.staffList.filter(st => Array.isArray(dObj[st.id]) && dObj[st.id].includes(hour));
+      },
+
+      // 該当スタッフの全店舗シフトが指定時間に入っているか確認
+      hasAnyShiftInStores(dateStr, hoursArray, staffId) {
+        for (const st of this.storeList) {
+          const sched = this.shiftsByStore[st.id] && this.shiftsByStore[st.id][dateStr];
+          if (sched) {
+            for (const h of hoursArray) {
+              if (Array.isArray(sched[h]) && sched[h].includes(staffId)) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      },
+
+      // 希望休を設定した時間帯から既存シフトを全店舗一括解除
+      removeShiftsForDayOff(dateStr, hoursArray, staffId) {
+        this.storeList.forEach(st => {
+          const sched = this.shiftsByStore[st.id] && this.shiftsByStore[st.id][dateStr];
+          if (sched) {
+            hoursArray.forEach(h => {
+              if (Array.isArray(sched[h])) {
+                sched[h] = sched[h].filter(id => id !== staffId);
+              }
+            });
+          }
+        });
+      },
+
+      async toggleFullDayOff(dateStr, staffId) {
+        if (!staffId) return;
+        if (!this.dayOffByDate[dateStr]) {
+          this.dayOffByDate[dateStr] = {};
+        }
+        const currentStatus = this.getDayOffStatus(dateStr, staffId);
+        if (currentStatus === 'full') {
+          this.dayOffByDate[dateStr][staffId] = [];
+        } else {
+          const allHours = Array.from({ length: 24 }, (_, i) => i);
+          if (this.hasAnyShiftInStores(dateStr, allHours, staffId)) {
+            const st = this.staffList.find(s => s.id === staffId);
+            if (!confirm(`${st ? st.name : ''}さんはこの日に既にシフトが入っています。シフトを解除して終日希望休に設定しますか？`)) {
+              return;
+            }
+            this.removeShiftsForDayOff(dateStr, allHours, staffId);
+            await this.persistShifts();
+          }
+          this.dayOffByDate[dateStr][staffId] = allHours;
+        }
+        await this.persistDayOff();
+        this.refreshIcons();
+      },
+
+      async toggleHourDayOff(dateStr, hour, staffId) {
+        if (!staffId) return;
+        if (!this.dayOffByDate[dateStr]) {
+          this.dayOffByDate[dateStr] = {};
+        }
+        if (!Array.isArray(this.dayOffByDate[dateStr][staffId])) {
+          this.dayOffByDate[dateStr][staffId] = [];
+        }
+        const arr = this.dayOffByDate[dateStr][staffId];
+        const idx = arr.indexOf(hour);
+        if (idx === -1) {
+          if (this.hasAnyShiftInStores(dateStr, [hour], staffId)) {
+            const st = this.staffList.find(s => s.id === staffId);
+            if (!confirm(`${st ? st.name : ''}さんは${hour}時に既にシフトが入っています。シフトを解除して希望休にしますか？`)) {
+              return;
+            }
+            this.removeShiftsForDayOff(dateStr, [hour], staffId);
+            await this.persistShifts();
+          }
+          arr.push(hour);
+          arr.sort((a, b) => a - b);
+        } else {
+          arr.splice(idx, 1);
+        }
+        await this.persistDayOff();
+        this.refreshIcons();
       },
 
       openStoreModal() {
@@ -1511,6 +1812,13 @@
         const idx = list.indexOf(this.selectedStaffId);
 
         if (idx === -1) {
+          // 1. 希望休ブロック判定
+          if (this.isStaffDayOff(this.currentDate, hour, this.selectedStaffId)) {
+            const staffName = this.selectedStaff ? this.selectedStaff.name : '選択した従業員';
+            alert(`【希望休ブロック】\n${staffName}さんは、この日の${hour}時に「希望休」が登録されているため配置できません。`);
+            return;
+          }
+          // 2. 他店舗重複ブロック判定
           const conflictStore = this.getConflictStore(this.currentDate, hour, this.selectedStaffId);
           if (conflictStore) {
             const staffName = this.selectedStaff ? this.selectedStaff.name : '選択した従業員';
@@ -1556,11 +1864,15 @@
 
         const blockedDetails = [];
         hoursToApply.forEach(h => {
-          const conflictStore = this.getConflictStore(dateStr, h, staffId);
-          if (conflictStore) {
-            blockedDetails.push(`${dateStr.slice(5)} ${h}時（${conflictStore.name}）`);
-          } else if (!schedule[h].includes(staffId)) {
-            schedule[h].push(staffId);
+          if (this.isStaffDayOff(dateStr, h, staffId)) {
+            blockedDetails.push(`${dateStr.slice(5)} ${h}時（希望休）`);
+          } else {
+            const conflictStore = this.getConflictStore(dateStr, h, staffId);
+            if (conflictStore) {
+              blockedDetails.push(`${dateStr.slice(5)} ${h}時（${conflictStore.name}）`);
+            } else if (!schedule[h].includes(staffId)) {
+              schedule[h].push(staffId);
+            }
           }
         });
 
@@ -1574,7 +1886,7 @@
         this.showPresetModal = false;
         this.refreshIcons();
         if (blocked.length > 0) {
-          alert(`他店舗で勤務中の以下の時間帯は重複防止のためブロック（除外）されました：\n・${blocked.join('\n・')}`);
+          alert(`希望休または他店舗勤務中の以下の時間帯は自動ブロック（除外）されました：\n・${blocked.join('\n・')}`);
         }
       },
 
@@ -1589,7 +1901,7 @@
         this.showPresetModal = false;
         this.refreshIcons();
         if (allBlocked.length > 0) {
-          alert(`他店舗で勤務中の以下の時間帯（計${allBlocked.length}コマ）は重複防止のためブロック（除外）されました：\n・${allBlocked.slice(0, 8).join('\n・')}${allBlocked.length > 8 ? '\n...他' : ''}`);
+          alert(`希望休または他店舗勤務中の以下の時間帯（計${allBlocked.length}コマ）は自動ブロック（除外）されました：\n・${allBlocked.slice(0, 8).join('\n・')}${allBlocked.length > 8 ? '\n...他' : ''}`);
         }
       },
 
@@ -1621,8 +1933,7 @@
         for (let h = 0; h < 24; h++) {
           const prevStaffIds = prevSchedule[h] || [];
           newDaySchedule[h] = prevStaffIds.filter(staffId => {
-            const conflict = this.getConflictStore(this.currentDate, h, staffId);
-            if (conflict) {
+            if (this.isStaffDayOff(this.currentDate, h, staffId) || this.getConflictStore(this.currentDate, h, staffId)) {
               blockedCount++;
               return false;
             }
@@ -1634,7 +1945,7 @@
         await this.persistShifts();
         this.refreshIcons();
         if (blockedCount > 0) {
-          alert(`前日のシフトをコピーしました（他店舗と重複する ${blockedCount} コマは自動ブロックされました）。`);
+          alert(`前日のシフトをコピーしました（希望休・他店舗重複の ${blockedCount} コマは自動ブロックされました）。`);
         }
       },
 
@@ -1670,8 +1981,7 @@
           for (let h = 0; h < 24; h++) {
             const prevStaffIds = (prevSchedule && prevSchedule[h]) ? prevSchedule[h] : [];
             newDaySchedule[h] = prevStaffIds.filter(staffId => {
-              const conflict = this.getConflictStore(day.dateStr, h, staffId);
-              if (conflict) {
+              if (this.isStaffDayOff(day.dateStr, h, staffId) || this.getConflictStore(day.dateStr, h, staffId)) {
                 blockedCount++;
                 return false;
               }
@@ -1684,7 +1994,7 @@
         await this.persistShifts();
         this.refreshIcons();
         if (blockedCount > 0) {
-          alert(`前週のシフトをコピーしました（他店舗と重複する ${blockedCount} コマは自動ブロックされました）。`);
+          alert(`前週のシフトをコピーしました（希望休・他店舗重複の ${blockedCount} コマは自動ブロックされました）。`);
         }
       },
 
@@ -1763,6 +2073,12 @@
           });
         });
 
+        Object.keys(this.dayOffByDate).forEach(dateKey => {
+          if (this.dayOffByDate[dateKey] && this.dayOffByDate[dateKey][targetId]) {
+            delete this.dayOffByDate[dateKey][targetId];
+          }
+        });
+
         if (this.selectedStaffId === targetId) {
           this.selectedStaffId = this.staffList.length > 0 ? this.staffList[0].id : null;
         }
@@ -1770,14 +2086,14 @@
         this.staffToDelete = null;
         await this.persistStaff();
         await this.persistShifts();
+        await this.persistDayOff();
         this.refreshIcons();
       },
 
       // ==========================================
-      // HTML5 Canvas ネイティブ高精細A4描画エンジン（ファイルサイズ劇的軽量化対応）
+      // HTML5 Canvas ネイティブ高精細A4描画エンジン
       // ==========================================
       renderA4ShiftCanvas() {
-        // PDF/PNGファイルサイズが肥大化しないよう、スケールを適正な高精細（scale: 1.5）に最適化
         const scale = 1.5;
         const logicalW = 1123;
         const logicalH = 794;
@@ -1993,7 +2309,6 @@
         this.isExporting = true;
         try {
           const canvas = this.renderA4ShiftCanvas();
-          // PNGではなく、高品質かつ高圧縮なJPEG（品質0.90）で出力することでファイルサイズを数100KB〜数MB以下（100MB未満）に自動抑制
           const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
           this.previewDataUrl = dataUrl;
 
@@ -2043,7 +2358,6 @@
         this.isExporting = true;
         try {
           const canvas = this.renderA4ShiftCanvas();
-          // jsPDF埋め込み時もJPEG圧縮（品質0.85）を適用し、PDFファイルサイズを数MB以下（100MB以下を確実に満たす軽量サイズ）に自動制御
           const imgData = canvas.toDataURL('image/jpeg', 0.85);
           this.previewDataUrl = imgData;
 
@@ -2052,7 +2366,7 @@
             orientation: 'landscape',
             unit: 'mm',
             format: 'a4',
-            compress: true // jsPDF標準の内部ストリーム圧縮を有効化
+            compress: true
           });
           
           pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
